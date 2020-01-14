@@ -46,11 +46,20 @@ function generate() {
 	console.time('init');
 	maze = new Maze(n);
 	console.timeEnd('init');
+	renderer.updatePath();
 	update(document.getElementById('debug').checked ? 1 : -1);
 }
 
+// Button inputs
 function redraw() {
 	maze.draw(ctx, document.getElementById('debug').checked);
+}
+
+function solve() {
+	maze.solve();
+	maze.generatePathMesh();
+	renderer.updatePath();
+	redraw();
 }
 
 window.addEventListener('resize', () => {

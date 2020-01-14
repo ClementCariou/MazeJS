@@ -22,6 +22,7 @@ class Maze {
 		this.regions = []; // map region ids to cells
 		this.edges = []; // list of neigbouring cells
 		this.graph = []; // graph of the maze
+		this.path = [];
 		this.generated = false;
 		this.player = { x: 0, y: 0 }; //player coordinates
 		this.target = { x: n - 1, y: n - 1 }; //target coordinates
@@ -108,6 +109,22 @@ class Maze {
 		}
 		this.arrays = { position, normal, texcoord, indices };
 	}
+	generatePathMesh() {
+		const w = 0.5;
+		var position = new Float32Array(this.path.length * 12);
+		var normal = new Float32Array(this.path.length * 12);
+		var texcoord = new Float32Array(this.path.length * 8);
+		var indices = new Uint16Array(this.path.length * 6);
+		for (let i = 0; i < this.path.length; i++) {
+			const x1 = this.n - Math.floor(this.path[i] / this.n) - 0.5;
+			const y1 = this.path[i] % this.n + 0.5;
+			position.set([ x1 - w, y1 - w, 0, x1 - w, y1 + w, 0, x1 + w, y1 - w, 0, x1 + w, y1 + w, 0 ], i * 12);
+			normal.set([ 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1 ], i * 12);
+			texcoord.set([ 0, 0, 1, 0, 0, 1, 1, 1 ], i * 8);
+			indices.set([ i * 4, i * 4 + 1, i * 4 + 2, i * 4 + 1, i * 4 + 2, i * 4 + 3 ], i * 6);
+		}
+		this.pathArrays = { position, normal, texcoord, indices };
+	}
 	movePlayer(dx, dy) {
 		const from = this.player.x * this.n + this.player.y;
 		const to = from + dx * this.n + dy;
@@ -115,6 +132,14 @@ class Maze {
 		this.player.x += dx;
 		this.player.y += dy;
 		return true;
+	}
+	solve() {
+		this.path = astar(
+			this.graph,
+			this.player.x * this.n + this.player.y,
+			this.target.x * this.n + this.target.y,
+			this.n
+		);
 	}
 	drawingConfig(ctx) {
 		const w = ctx.canvas.clientWidth;
@@ -128,8 +153,18 @@ class Maze {
 		};
 	}
 	draw(ctx, debug) {
-		const { ox, oy, ts, s } = this.drawingConfig(ctx);
 		if (!this.coords) this.generateCoords();
+		this.drawMaze(ctx);
+		if (debug) {
+			this.drawDebug(ctx);
+		} else {
+			this.drawCircle(ctx, this.target, 'lime');
+			this.drawCircle(ctx, this.player, 'blue');
+			this.drawPath(ctx);
+		}
+	}
+	drawMaze(ctx) {
+		const { ox, oy, ts, s } = this.drawingConfig(ctx);
 		ctx.clearRect(ox, oy, s, s);
 		ctx.strokeStyle = 'black';
 		ctx.beginPath();
@@ -137,21 +172,24 @@ class Maze {
 			ctx.moveTo(c.x1 * ts + ox, c.y1 * ts + oy);
 			ctx.lineTo(c.x2 * ts + ox, c.y2 * ts + oy);
 		}
-		ctx.closePath();
 		ctx.stroke();
-		if (debug) this.drawDebug(ctx);
-		else {
-			ctx.fillStyle = 'lime';
-			ctx.beginPath();
-			ctx.arc((this.target.x + 0.5) * ts + ox, (this.target.y + 0.5) * ts + oy, ts / 4, 0, 2 * Math.PI);
-			ctx.closePath();
-			ctx.fill();
-			ctx.fillStyle = 'blue';
-			ctx.beginPath();
-			ctx.arc((this.player.x + 0.5) * ts + ox, (this.player.y + 0.5) * ts + oy, ts / 4, 0, 2 * Math.PI);
-			ctx.closePath();
-			ctx.fill();
+	}
+	drawCircle(ctx, pos, color) {
+		const { ox, oy, ts } = this.drawingConfig(ctx);
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.arc((pos.x + 0.5) * ts + ox, (pos.y + 0.5) * ts + oy, ts / 4, 0, 2 * Math.PI);
+		ctx.closePath();
+		ctx.fill();
+	}
+	drawPath(ctx) {
+		const { ox, oy, ts } = this.drawingConfig(ctx);
+		ctx.strokeStyle = 'red';
+		ctx.beginPath();
+		for (let c of this.path) {
+			ctx.lineTo((Math.floor(c / this.n) + 0.5) * ts + ox, (c % this.n + 0.5) * ts + oy);
 		}
+		ctx.stroke();
 	}
 	drawDebug(ctx) {
 		const { ox, oy, ts } = this.drawingConfig(ctx);

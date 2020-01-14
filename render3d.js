@@ -8,6 +8,10 @@ function Renderer3D(gl) {
 		this.maze = maze;
 		this.mazeBufferInfo = twgl.createBufferInfoFromArrays(gl, maze.arrays);
 	};
+	this.updatePath = () => {
+		if (maze.pathArrays) this.pathBufferInfo = twgl.createBufferInfoFromArrays(gl, maze.pathArrays);
+		else this.pathBufferInfo = false;
+	};
 	this.fps = false;
 	this.setMode = (mode) => {
 		this.fps = mode === 'fps';
@@ -25,7 +29,7 @@ function Renderer3D(gl) {
 		src: [ 255, 255, 255, 255, 192, 192, 192, 255, 192, 192, 192, 255, 255, 255, 255, 255 ]
 	});
 
-	const ballTex = twgl.createTexture(gl, {
+	const whiteTex = twgl.createTexture(gl, {
 		min: gl.NEAREST,
 		mag: gl.NEAREST,
 		src: [ 255, 255, 255, 255 ]
@@ -93,7 +97,6 @@ function Renderer3D(gl) {
 		var world = m4.translation(v3.create(-n / 2, -n / 2, 0));
 
 		//Draw Maze
-
 		uniforms.u_ambient = [ 0.5, 0.5, 0.5, 1 ];
 		uniforms.u_lightColor = [ 0.95, 0.95, 1, 1 ];
 		uniforms.u_diffuse = wallTex;
@@ -107,8 +110,18 @@ function Renderer3D(gl) {
 		twgl.setUniforms(programInfo, uniforms);
 		gl.drawElements(gl.TRIANGLES, this.mazeBufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
 
+		//Draw Path
+		uniforms.u_diffuse = whiteTex;
+		if (this.pathBufferInfo) {
+			uniforms.u_ambient = [ 1, 0, 0, 1 ];
+			uniforms.u_lightColor = [ 1, 0.5, 0.5, 1 ];
+			gl.useProgram(programInfo.program);
+			twgl.setBuffersAndAttributes(gl, programInfo, this.pathBufferInfo);
+			twgl.setUniforms(programInfo, uniforms);
+			gl.drawElements(gl.TRIANGLES, this.pathBufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
+		}
+
 		//Draw Player
-		uniforms.u_diffuse = ballTex;
 		if (!this.fps) {
 			world = m4.translation(v3.create(n / 2 - this.aPlayer.x - 0.5, this.aPlayer.y - n / 2 + 0.5, 0.5));
 			uniforms.u_ambient = [ 0, 0, 1, 1 ];
